@@ -642,7 +642,8 @@ public:
 
     void setVariable(const string& var, const string& value) {
         string var_upper = to_upper(var);
-        variables[var_upper] = value;
+        string value_upper = to_upper(value);
+        variables[var_upper] = value_upper;
     }
 
     string getVariable(const string& var) {
@@ -735,17 +736,17 @@ public:
         if(valid){
             diagnosis = rule->conclusion.second;
             varList->setVariable("DIAGNOSIS", diagnosis);
-            cout << "Rule " << rule->ruleNumber << " validated: " << diagnosis << "\n";
+            // Removed the unwanted message
             return true;
         }
         else{
-            cout << "Rule " << rule->ruleNumber << " conditions not satisfied.\n";
+            // Removed the unwanted message
         }
         return false;
     }
 
     // Function 5: Process
-    bool Process(const string& goalVariable, string& result) {
+    bool Process(const string& goalVariable, string& result, int& ruleNumber) {
         // Start with the goal variable
         // Find all rules that conclude the goal variable
         vector<RuleBackward*> matchingRules = search_con(goalVariable);
@@ -756,7 +757,6 @@ public:
         }
 
         for(auto rule : matchingRules){
-            cout << "\nEvaluating Rule " << rule->ruleNumber << " for " << goalVariable << "...\n";
             int Ri = rule->ruleNumber;
             int Ci = rule_to_clause(Ri);
             // Update Variable List by asking user for conditions
@@ -769,6 +769,7 @@ public:
             string diagnosis;
             if(validate_Ri(rule, diagnosis)){
                 result = diagnosis;
+                ruleNumber = rule->ruleNumber;
                 return true;
             }
             else{
@@ -791,7 +792,6 @@ private:
     KnowledgeBaseForward* kb;
     VariableList* varList;
     vector<string> derivedConclusions;
-    // No need for a queue in this implementation
 
 public:
     InferenceEngineForward(KnowledgeBaseForward* knowledgeBase, VariableList* variables)
@@ -885,13 +885,11 @@ int main(){
 
     // Start processing
     string diagnosis;
-    bool found = ie_backward.Process(goal, diagnosis);
+    int usedRuleNumber = -1;
+    bool found = ie_backward.Process(goal, diagnosis, usedRuleNumber);
 
     if(found && !diagnosis.empty()){
-        cout << "\nDiagnosis: " << diagnosis << "\n";
-
-        // Pass diagnosis to forward chaining
-        // No need to set "DISEASE" in varList_forward since we'll handle it directly in recommendTreatments
+        cout << "\nDiagnosis: " << diagnosis << " (Rule " << usedRuleNumber << ")\n";
     }
     else{
         cout << "\nGoal cannot be determined.\n";
