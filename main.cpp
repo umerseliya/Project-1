@@ -636,19 +636,17 @@ public:
     unordered_map<string, string> variables;
 
     bool isInstantiated(const string& var) {
-        return variables.find(var) != variables.end();
+        string var_upper = to_upper(var);
+        return variables.find(var_upper) != variables.end();
     }
 
     void setVariable(const string& var, const string& value) {
-        // Convert variable name to uppercase to maintain consistency
-        string var_upper = var;
-        transform(var_upper.begin(), var_upper.end(), var_upper.begin(), ::toupper);
+        string var_upper = to_upper(var);
         variables[var_upper] = value;
     }
 
     string getVariable(const string& var) {
-        string var_upper = var;
-        transform(var_upper.begin(), var_upper.end(), var_upper.begin(), ::toupper);
+        string var_upper = to_upper(var);
         if(isInstantiated(var_upper))
             return variables[var_upper];
         else
@@ -660,6 +658,13 @@ public:
         for(auto& pair : variables){
             cout << pair.first << " = " << pair.second << "\n";
         }
+    }
+
+private:
+    string to_upper(const string& str){
+        string result = str;
+        transform(result.begin(), result.end(), result.begin(), ::toupper);
+        return result;
     }
 };
 
@@ -786,114 +791,69 @@ private:
     KnowledgeBaseForward* kb;
     VariableList* varList;
     vector<string> derivedConclusions;
-    queue<string> conclusionQueue;
+    // No need for a queue in this implementation
 
 public:
     InferenceEngineForward(KnowledgeBaseForward* knowledgeBase, VariableList* variables)
         : kb(knowledgeBase), varList(variables) {}
 
-    // Function 1: search_cvl
-    // Finds all rules that match the current variable
-    vector<RuleForward*> search_cvl(const string& variable) {
-        vector<RuleForward*> matchingRules;
+    // Function to recommend treatments based on diagnosis
+    void recommendTreatments(const string& diagnosis) {
+        // Iterate through all forward chaining rules
         for(auto rule : kb->rules){
-            bool match = true;
-            for(auto& cond : rule->conditions){
-                if(cond.first == "DISEASE"){
-                    if(varList->isInstantiated("DISEASE") && varList->getVariable("DISEASE") != cond.second){
-                        match = false;
-                        break;
+            // Check if the rule's disease matches the diagnosis
+            if(rule->conditions.find("DISEASE") != rule->conditions.end()){
+                string ruleDisease = rule->conditions["DISEASE"];
+                // Case-insensitive comparison
+                string ruleDisease_upper = to_upper(ruleDisease);
+                string diagnosis_upper = to_upper(diagnosis);
+                if(ruleDisease_upper != diagnosis_upper){
+                    continue; // Skip rules not related to the diagnosed disease
+                }
+
+                // Retrieve the symptom from the rule
+                if(rule->conditions.find("SYMPTOM") != rule->conditions.end()){
+                    string symptom = rule->conditions["SYMPTOM"];
+                    // Ask the user about the symptom
+                    string response;
+                    cout << "Do you experience \"" << symptom << "\"? (YES/NO): ";
+                    getline(cin, response);
+                    // Convert to uppercase for consistency
+                    transform(response.begin(), response.end(), response.begin(), ::toupper);
+                    if(response != "YES" && response != "NO"){
+                        cout << "Invalid input. Assuming NO.\n";
+                        response = "NO";
+                    }
+                    // Store the symptom response
+                    varList->setVariable(symptom, response);
+
+                    // If the user has the symptom, suggest the treatment
+                    if(response == "YES"){
+                        derivedConclusions.push_back(rule->conclusion);
                     }
                 }
-                // Add more condition checks if needed
-            }
-            if(match){
-                matchingRules.push_back(rule);
-            }
-        }
-        return matchingRules;
-    }
-
-    // Function 2: clause_to_rule
-    int clause_to_rule(int Ci) {
-        // Since clause number corresponds to rule number, return Ci
-        return Ci;
-    }
-
-    // Function 3: update_VL_forward
-    bool update_VL_forward(RuleForward* rule) {
-        // Ask user for each condition in the rule if not already instantiated
-        for(auto& cond : rule->conditions){
-            if(!varList->isInstantiated(cond.first)){
-                string response;
-                cout << "Enter value for " << cond.first << " (" << cond.second << " expected): ";
-                getline(cin, response);
-                // For simplicity, assume user inputs correct values
-                // Convert to uppercase for consistency
-                transform(response.begin(), response.end(), response.begin(), ::toupper);
-                varList->setVariable(cond.first, response);
-            }
-        }
-        return true;
-    }
-
-    // Function 4: validate_Ri_forward
-    bool validate_Ri_forward(RuleForward* rule) {
-        // Check if all conditions are satisfied
-        for(auto& cond : rule->conditions){
-            if(!varList->isInstantiated(cond.first) || varList->getVariable(cond.first) != cond.second){
-                return false;
-            }
-        }
-
-        // If satisfied, add conclusion to derived conclusions and queue
-        derivedConclusions.push_back(rule->conclusion);
-        conclusionQueue.push(rule->conclusion);
-        return true;
-    }
-
-    // Function 5: process_forward
-    void process_forward() {
-        while(!conclusionQueue.empty()){
-            string currentConclusion = conclusionQueue.front();
-            conclusionQueue.pop();
-
-            // Debug statement
-            cout << "\nProcessing conclusion: " << currentConclusion << "\n";
-
-            // Find and process rules that have this conclusion as a condition
-            vector<RuleForward*> matchingRules = search_cvl(currentConclusion);
-
-            for(auto rule : matchingRules){
-                cout << "Evaluating Rule " << rule->ruleNumber << " for treatment recommendation...\n";
-                if(validate_Ri_forward(rule)){
-                    // Rule validated, enqueue the conclusion
-                    // Already handled in validate_Ri_forward
-                    cout << "Rule " << rule->ruleNumber << " validated: " << rule->conclusion << "\n";
-                }
-                else{
-                    cout << "Rule " << rule->ruleNumber << " conditions not satisfied.\n";
-                }
             }
         }
     }
 
-    // Function to add initial treatment symptom
-    void add_initial_symptom(const string& symptom) {
-        // Assuming "SYMPTOM" is a key in the variable list
-        // Convert symptom to uppercase for consistency
-        string symptom_upper = symptom;
-        transform(symptom_upper.begin(), symptom_upper.end(), symptom_upper.begin(), ::toupper);
-        varList->setVariable("SYMPTOM", symptom_upper);
-        conclusionQueue.push(symptom_upper);
-    }
+    // Function to print all derived treatment recommendations
+    void printConclusions() {
+        if(derivedConclusions.empty()){
+            cout << "No treatment recommendations based on the provided symptoms.\n";
+            return;
+        }
 
-    // Function to print derived conclusions
-    void print_conclusions() {
         cout << "\n--- Treatment Recommendations ---\n";
         for(auto& concl : derivedConclusions){
             cout << "- " << concl << "\n";
         }
+    }
+
+private:
+    string to_upper(const string& str){
+        string result = str;
+        transform(result.begin(), result.end(), result.begin(), ::toupper);
+        return result;
     }
 };
 
@@ -931,7 +891,7 @@ int main(){
         cout << "\nDiagnosis: " << diagnosis << "\n";
 
         // Pass diagnosis to forward chaining
-        varList_forward.setVariable("DISEASE", diagnosis);
+        // No need to set "DISEASE" in varList_forward since we'll handle it directly in recommendTreatments
     }
     else{
         cout << "\nGoal cannot be determined.\n";
@@ -942,18 +902,12 @@ int main(){
     // Forward Chaining for Treatment
     // -----------------------------
     cout << "\n=== Forward Chaining Treatment Recommendations ===\n";
-    string symptom;
-    cout << "Enter the symptom for treatment recommendation: ";
-    getline(cin, symptom);
 
-    // Add initial symptom to forward chaining
-    ie_forward.add_initial_symptom(symptom);
-
-    // Process forward chaining
-    ie_forward.process_forward();
+    // Recommend treatments based on the diagnosis
+    ie_forward.recommendTreatments(diagnosis);
 
     // Print treatment recommendations
-    ie_forward.print_conclusions();
+    ie_forward.printConclusions();
 
     return 0;
 }
