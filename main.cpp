@@ -873,15 +873,17 @@ int main(){
     // Initialize Inference Engines
     InferenceEngineBackward ie_backward(&kb_backward, &varList_backward);
     InferenceEngineForward ie_forward(&kb_forward, &varList_forward);
-
+    cout << "-------------------------------------------------------\n";
+    cout << "=== Cardiovascular Diseases Diagnosis Expert System ===\n";
+    cout << "-------------------------------------------------------\n\n";
     // -----------------------------
     // Backward Chaining for Diagnosis
     // -----------------------------
-    cout << "=== Backward Chaining Diagnosis ===\n";
+    cout << "=== Diseases Diagnosis (Backwards) ===\n";
 
     // Hardcode the goal variable to "DIAGNOSIS" to avoid user input errors
     string goal = "DIAGNOSIS";
-    cout << "Determining diagnosis...\n";
+    cout << "Determining diagnosis - Please answer YEE / NO to the following Symptoms:\n";
 
     // Start processing
     string diagnosis;
@@ -899,7 +901,7 @@ int main(){
     // -----------------------------
     // Forward Chaining for Treatment
     // -----------------------------
-    cout << "\n=== Forward Chaining Treatment Recommendations ===\n";
+    cout << "\n=== Treatment Recommendations (Forwards) ===\n";
 
     // Recommend treatments based on the diagnosis
     ie_forward.recommendTreatments(diagnosis);
