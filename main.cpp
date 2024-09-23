@@ -1,866 +1,303 @@
 #include <iostream>
 #include <vector>
-#include <unordered_map>
+#include <map>
 #include <string>
 #include <algorithm>
-#include <queue>
 
 using namespace std;
 
-// -----------------------------
-// Rule Classes
-// -----------------------------
-
-// Class for Backward Chaining Rules
-class RuleBackward {
-public:
-    int ruleNumber;
-    unordered_map<string, string> conditions; // Variable -> Value
-    pair<string, string> conclusion;          // Variable -> Value
-
-    RuleBackward(int num, unordered_map<string, string> cond, pair<string, string> concl)
-        : ruleNumber(num), conditions(cond), conclusion(concl) {}
+// Structure to represent a rule in the expert system
+struct Rule 
+{
+    int id; // Rule ID
+    vector<string> conditions; // Conditions (if part of the rule)
+    string conclusion; // Conclusion (then part of the rule)
 };
 
-// Class for Forward Chaining Rules
-class RuleForward {
-public:
-    int ruleNumber;
-    unordered_map<string, string> conditions; // Variable -> Value
-    string conclusion;
-
-    RuleForward(int num, unordered_map<string, string> cond, string concl)
-        : ruleNumber(num), conditions(cond), conclusion(concl) {}
-};
-
-// -----------------------------
-// Knowledge Base Classes
-// -----------------------------
-
-// Knowledge Base for Backward Chaining (Diagnosis)
+// KnowledgeBaseBackward class to manage the backward chaining rules
 class KnowledgeBaseBackward {
 public:
-    vector<RuleBackward*> rules;
+    vector<Rule> rules;
+    map<int, string> conclusionList;
+    map<int, string> clauseVarList; // Not directly used in this implementation
+    map<string, string> questionVarList;
 
     KnowledgeBaseBackward() {
-        // Rule 10
-        rules.push_back(new RuleBackward(10, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "YES"},
-            {"EXERTION_STRESS", "YES"},
-            {"RELIEF_WITH_REST", "YES"}
-        }, {"DIAGNOSIS", "Coronary Artery Disease"}));
+        // Initialize rules
+        rules = 
+        {
+            {10, {"CHEST_PAIN", "RADIATING_PAIN", "EXERTION_STRESS", "RELIEF_WITH_REST"}, "Coronary Artery Disease"},
+            {20, {"CHEST_PAIN", "RADIATING_PAIN", "EXERTION_STRESS", "NAUSEA_VOMITING"}, "Heart Attack (Myocardial Infarction)"},
+            {30, {"CHEST_PAIN", "RADIATING_PAIN", "EXERTION_STRESS", "DISCOMFORT_OVER_MINUTES"}, "Heart Attack (Myocardial Infarction)"},
+            {40, {"CHEST_PAIN", "RADIATING_PAIN", "EXERTION_STRESS", "CHEST_PAIN_RANDOM"}, "Unstable Angina"},
+            {50, {"CHEST_PAIN", "RADIATING_PAIN", "EXERTION_STRESS"}, "Stable Angina"},
+            {60, {"CHEST_PAIN", "CHEST_PAIN_WORSE_LYING_DOWN"}, "Pericarditis"},
+            {70, {"CHEST_PAIN", "FLUTTERING_HEARTBEAT", "DIZZINESS_FAINTING"}, "Arrhythmia"},
+            {80, {"CHEST_PAIN", "FLUTTERING_HEARTBEAT", "IS_SHORTNESS_BREATH_WITH_EXERTION"}, "Arrhythmia"},
+            {90, {"CHEST_PAIN", "FLUTTERING_HEARTBEAT"}, "Benign Palpitations"},
+            {100, {"CHEST_PAIN", "SHORTNESS_BREATH_CHEST_TIGHTNESS"}, "Pulmonary Hypertension"},
+            {110, {"CHEST_PAIN", "RECENT_FEVER_ILLNESS"}, "Endocarditis"},
+            {120, {"CHEST_PAIN", "FEVER_WEIGHT_LOSS", "NIGHT_SWEATS_CHILLS", "NEW_HEART_MURMUR"}, "Endocarditis"},
+            {130, {"CHEST_PAIN", "FEVER_WEIGHT_LOSS", "NIGHT_SWEATS_CHILLS", "PAINFUL_SWOLLEN_JOINTS"}, "Rheumatic Heart Disease"},
+            {140, {"SWELLING_LEGS_ANKLES", "SHORTNESS_BREATH_LYING_DOWN", "PRODUCTIVE_COUGH_WHEEZING"}, "Congestive Heart Failure"},
+            {150, {"SWELLING_LEGS_ANKLES", "SHORTNESS_BREATH_LYING_DOWN", "SWOLLEN_LIVER_ABDOMEN"}, "Right-Sided Heart Failure"},
+            {160, {"SWELLING_LEGS_ANKLES", "SHORTNESS_BREATH_LYING_DOWN", "HIGH_BLOOD_PRESSURE"}, "Hypertensive Heart Disease"},
+            {170, {"SWELLING_LEGS_ANKLES", "SHORTNESS_BREATH_LYING_DOWN", "SHORTNESS_BREATH_CHEST_PAIN_EXERTION"}, "Congestive Heart Failure"},
+            {180, {"SWELLING_LEGS_ANKLES", "SHORTNESS_BREATH_LYING_DOWN", "PERSISTENT_DRY_COUGH"}, "Pulmonary Hypertension"},
+            {190, {"SWELLING_LEGS_ANKLES", "SHORTNESS_BREATH_LYING_DOWN"}, "Valvular Heart Disease"},
+            {200, {"SWELLING_LEGS_ANKLES", "HISTORY_ALCOHOL_DRUGS"}, "Cardiomyopathy"},
+            {210, {"SWELLING_LEGS_ANKLES", "FREQUENT_INFECTIONS_FEVER"}, "Endocarditis"},
+            {220, {"SWELLING_LEGS_ANKLES", "RECENT_INFECTION_TRAUMA"}, "Pericarditis"},
+            {230, {"SWELLING_LEGS_ANKLES"}, "Congestive Heart Failure"},
+            {240, {"LEG_PAIN_WHEN_WALKING", "PAIN_SUBSIDES_AFTER_REST"}, "Peripheral Artery Disease"},
+            {250, {"LEG_PAIN_WHEN_WALKING"}, "Aortic Aneurysm"},
+            {260, {"NUMBNESS_COLDNESS_LIMBS"}, "Peripheral Artery Disease"},
+            {270, {"PAIN_SUDDEN_SEVERE"}, "Aortic Aneurysm"},
+            {280, {"NUMBNESS_COLDNESS_LIMBS"}, "Congenital Heart Disease"},
+            {290, {"CHEST_PAIN", "FEVER_WEIGHT_LOSS", "SWELLING_LEGS_DIFFICULTY_BREATHING"}, "Congestive Heart Failure"},
+            {300, {"CHEST_PAIN", "SHARP_CHEST_PAIN_DEEP_BREATHS", "RECENT_INFECTION_TRAUMA"}, "Pericarditis"},
+            {310, {"CHEST_PAIN", "SHARP_CHEST_PAIN_DEEP_BREATHS", "DIFFICULTY_BREATHING_LYING_DOWN"}, "Pericarditis"},
+            {320, {"CHEST_PAIN", "SHARP_CHEST_PAIN_DEEP_BREATHS"}, "Stable Angina"},
+            {330, {"CHEST_PAIN", "HIGH_BP_HEADACHES_BLURRED_VISION"}, "Hypertensive Heart Disease"},
+            {340, {"CHEST_PAIN", "BLUISH_SKIN_LIPS", "PRESENT_SINCE_BIRTH"}, "Congenital Heart Disease"},
+            {350, {"CHEST_PAIN", "BLUISH_SKIN_LIPS", "EXTREME_SHORTNESS_BREATH_FATIGUE_EXERTION"}, "Pulmonary Hypertension"},
+            {360, {"CHEST_PAIN"}, "Benign Condition"}
+        };
 
-        // Rule 20
-        rules.push_back(new RuleBackward(20, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "YES"},
-            {"EXERTION_STRESS", "YES"},
-            {"RELIEF_WITH_REST", "NO"},
-            {"NAUSEA_VOMITING", "YES"}
-        }, {"DIAGNOSIS", "Heart Attack (Myocardial Infarction)"}));
+        // Initialize conclusionList
+        for (const auto& rule : rules) {
+            conclusionList[rule.id] = rule.conclusion;
+        }
 
-        // Rule 30
-        rules.push_back(new RuleBackward(30, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "YES"},
-            {"EXERTION_STRESS", "YES"},
-            {"RELIEF_WITH_REST", "NO"},
-            {"NAUSEA_VOMITING", "NO"},
-            {"DISCOMFORT_OVER_MINUTES", "YES"}
-        }, {"DIAGNOSIS", "Heart Attack (Myocardial Infarction)"}));
+        // Initialize clauseVarList (optional usage)
+        // This mapping can be used if you have specific clause numbers to variables
+        // For this implementation, it's not directly utilized
+        int clauseNumber = 1;
+        for (const auto& rule : rules) {
+            for (const auto& cond : rule.conditions) {
+                clauseVarList[clauseNumber++] = cond;
+            }
+        }
 
-        // Rule 40
-        rules.push_back(new RuleBackward(40, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "YES"},
-            {"EXERTION_STRESS", "YES"},
-            {"RELIEF_WITH_REST", "NO"},
-            {"NAUSEA_VOMITING", "NO"},
-            {"DISCOMFORT_OVER_MINUTES", "NO"},
-            {"CHEST_PAIN_RANDOM", "YES"}
-        }, {"DIAGNOSIS", "Unstable Angina"}));
-
-        // Rule 50
-        rules.push_back(new RuleBackward(50, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "YES"},
-            {"EXERTION_STRESS", "YES"},
-            {"RELIEF_WITH_REST", "NO"},
-            {"NAUSEA_VOMITING", "NO"},
-            {"DISCOMFORT_OVER_MINUTES", "NO"},
-            {"CHEST_PAIN_RANDOM", "NO"}
-        }, {"DIAGNOSIS", "Stable Angina"}));
-
-        // Rule 60
-        rules.push_back(new RuleBackward(60, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "YES"}
-        }, {"DIAGNOSIS", "Pericarditis"}));
-
-        // Rule 70
-        rules.push_back(new RuleBackward(70, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "YES"},
-            {"DIZZINESS_FAINTING", "YES"}
-        }, {"DIAGNOSIS", "Arrhythmia"}));
-
-        // Rule 80
-        rules.push_back(new RuleBackward(80, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "YES"},
-            {"DIZZINESS_FAINTING", "NO"},
-            {"IS_SHORTNESS_BREATH_WITH_EXERTION", "YES"}
-        }, {"DIAGNOSIS", "Arrhythmia"}));
-
-        // Rule 90
-        rules.push_back(new RuleBackward(90, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "YES"},
-            {"DIZZINESS_FAINTING", "NO"},
-            {"IS_SHORTNESS_BREATH_WITH_EXERTION", "NO"}
-        }, {"DIAGNOSIS", "Benign Palpitations"}));
-
-        // Rule 100
-        rules.push_back(new RuleBackward(100, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "NO"},
-            {"SHORTNESS_BREATH_CHEST_TIGHTNESS", "YES"}
-        }, {"DIAGNOSIS", "Pulmonary Hypertension"}));
-
-        // Rule 110
-        rules.push_back(new RuleBackward(110, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "NO"},
-            {"SHORTNESS_BREATH_CHEST_TIGHTNESS", "NO"},
-            {"RECENT_FEVER_ILLNESS", "YES"}
-        }, {"DIAGNOSIS", "Endocarditis"}));
-
-        // Rule 120
-        rules.push_back(new RuleBackward(120, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "NO"},
-            {"SHORTNESS_BREATH_CHEST_TIGHTNESS", "NO"},
-            {"RECENT_FEVER_ILLNESS", "NO"},
-            {"FEVER_WEIGHT_LOSS", "YES"},
-            {"NIGHT_SWEATS_CHILLS", "YES"},
-            {"NEW_HEART_MURMUR", "YES"}
-        }, {"DIAGNOSIS", "Endocarditis"}));
-
-        // Rule 130
-        rules.push_back(new RuleBackward(130, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"FLUTTERING_HEARTBEAT", "NO"},
-            {"SHORTNESS_BREATH_CHEST_TIGHTNESS", "NO"},
-            {"RECENT_FEVER_ILLNESS", "NO"},
-            {"FEVER_WEIGHT_LOSS", "YES"},
-            {"NIGHT_SWEATS_CHILLS", "YES"},
-            {"NEW_HEART_MURMUR", "NO"},
-            {"PAINFUL_SWOLLEN_JOINTS", "YES"}
-        }, {"DIAGNOSIS", "Rheumatic Heart Disease"}));
-
-        // Rule 140
-        rules.push_back(new RuleBackward(140, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "YES"},
-            {"PRODUCTIVE_COUGH_WHEEZING", "YES"}
-        }, {"DIAGNOSIS", "Congestive Heart Failure"}));
-
-        // Rule 150
-        rules.push_back(new RuleBackward(150, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "YES"},
-            {"PRODUCTIVE_COUGH_WHEEZING", "NO"},
-            {"SWOLLEN_LIVER_ABDOMEN", "YES"}
-        }, {"DIAGNOSIS", "RightSided Heart Failure"}));
-
-        // Rule 160
-        rules.push_back(new RuleBackward(160, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "YES"},
-            {"PRODUCTIVE_COUGH_WHEEZING", "NO"},
-            {"SWOLLEN_LIVER_ABDOMEN", "NO"},
-            {"HIGH_BLOOD_PRESSURE", "YES"}
-        }, {"DIAGNOSIS", "Hypertensive Heart Disease"}));
-
-        // Rule 170
-        rules.push_back(new RuleBackward(170, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "YES"},
-            {"PRODUCTIVE_COUGH_WHEEZING", "NO"},
-            {"SWOLLEN_LIVER_ABDOMEN", "NO"},
-            {"HIGH_BLOOD_PRESSURE", "NO"},
-            {"SHORTNESS_BREATH_CHEST_PAIN_EXERTION", "YES"}
-        }, {"DIAGNOSIS", "Congestive Heart Failure"}));
-
-        // Rule 180
-        rules.push_back(new RuleBackward(180, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "YES"},
-            {"PRODUCTIVE_COUGH_WHEEZING", "NO"},
-            {"SWOLLEN_LIVER_ABDOMEN", "NO"},
-            {"HIGH_BLOOD_PRESSURE", "NO"},
-            {"SHORTNESS_BREATH_CHEST_PAIN_EXERTION", "NO"},
-            {"PERSISTENT_DRY_COUGH", "YES"}
-        }, {"DIAGNOSIS", "Pulmonary Hypertension"}));
-
-        // Rule 190
-        rules.push_back(new RuleBackward(190, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "YES"},
-            {"PRODUCTIVE_COUGH_WHEEZING", "NO"},
-            {"SWOLLEN_LIVER_ABDOMEN", "NO"},
-            {"HIGH_BLOOD_PRESSURE", "NO"},
-            {"SHORTNESS_BREATH_CHEST_PAIN_EXERTION", "NO"},
-            {"PERSISTENT_DRY_COUGH", "NO"}
-        }, {"DIAGNOSIS", "Valvular Heart Disease"}));
-
-        // Rule 200
-        rules.push_back(new RuleBackward(200, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "NO"},
-            {"HISTORY_ALCOHOL_DRUGS", "YES"}
-        }, {"DIAGNOSIS", "Cardiomyopathy"}));
-
-        // Rule 210
-        rules.push_back(new RuleBackward(210, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "NO"},
-            {"HISTORY_ALCOHOL_DRUGS", "NO"},
-            {"FREQUENT_INFECTIONS_FEVER", "YES"}
-        }, {"DIAGNOSIS", "Endocarditis"}));
-
-        // Rule 220
-        rules.push_back(new RuleBackward(220, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "NO"},
-            {"HISTORY_ALCOHOL_DRUGS", "NO"},
-            {"FREQUENT_INFECTIONS_FEVER", "NO"},
-            {"RECENT_INFECTION_TRAUMA", "YES"}
-        }, {"DIAGNOSIS", "Pericarditis"}));
-
-        // Rule 230
-        rules.push_back(new RuleBackward(230, {
-            {"SWELLING_LEGS_ANKLES", "YES"},
-            {"SHORTNESS_BREATH_LYING_DOWN", "NO"},
-            {"HISTORY_ALCOHOL_DRUGS", "NO"},
-            {"FREQUENT_INFECTIONS_FEVER", "NO"},
-            {"RECENT_INFECTION_TRAUMA", "NO"}
-        }, {"DIAGNOSIS", "Congestive Heart Failure"}));
-
-        // Rule 240
-        rules.push_back(new RuleBackward(240, {
-            {"SWELLING_LEGS_ANKLES", "NO"},
-            {"LEG_PAIN_WHEN_WALKING", "YES"},
-            {"PAIN_SUBSIDES_AFTER_REST", "YES"}
-        }, {"DIAGNOSIS", "Peripheral Artery Disease"}));
-
-        // Rule 250
-        rules.push_back(new RuleBackward(250, {
-            {"SWELLING_LEGS_ANKLES", "NO"},
-            {"LEG_PAIN_WHEN_WALKING", "YES"},
-            {"PAIN_SUBSIDES_AFTER_REST", "NO"}
-        }, {"DIAGNOSIS", "Aortic Aneurysm"}));
-
-        // Rule 260
-        rules.push_back(new RuleBackward(260, {
-            {"SWELLING_LEGS_ANKLES", "NO"},
-            {"LEG_PAIN_WHEN_WALKING", "NO"},
-            {"NUMBNESS_COLDNESS_LIMBS", "YES"}
-        }, {"DIAGNOSIS", "Peripheral Artery Disease"}));
-
-        // Rule 270
-        rules.push_back(new RuleBackward(270, {
-            {"SWELLING_LEGS_ANKLES", "NO"},
-            {"LEG_PAIN_WHEN_WALKING", "NO"},
-            {"NUMBNESS_COLDNESS_LIMBS", "NO"},
-            {"PAIN_SUDDEN_SEVERE", "YES"}
-        }, {"DIAGNOSIS", "Aortic Aneurysm"}));
-
-        // Rule 280
-        rules.push_back(new RuleBackward(280, {
-            {"SWELLING_LEGS_ANKLES", "NO"},
-            {"LEG_PAIN_WHEN_WALKING", "NO"},
-            {"NUMBNESS_COLDNESS_LIMBS", "NO"},
-            {"PAIN_SUDDEN_SEVERE", "NO"}
-        }, {"DIAGNOSIS", "Congenital Heart Disease"}));
-
-        // Rule 290
-        rules.push_back(new RuleBackward(290, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"CHEST_PAIN_WORSE_LYING_DOWN", "NO"},
-            {"SHORTNESS_BREATH_CHEST_TIGHTNESS", "NO"},
-            {"RECENT_FEVER_ILLNESS", "NO"},
-            {"FEVER_WEIGHT_LOSS", "YES"},
-            {"NIGHT_SWEATS_CHILLS", "NO"},
-            {"SWELLING_LEGS_DIFFICULTY_BREATHING", "YES"}
-        }, {"DIAGNOSIS", "Congestive Heart Failure"}));
-
-        // Rule 300
-        rules.push_back(new RuleBackward(300, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "YES"},
-            {"RECENT_INFECTION_TRAUMA", "YES"}
-        }, {"DIAGNOSIS", "Pericarditis"}));
-
-        // Rule 310
-        rules.push_back(new RuleBackward(310, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "YES"},
-            {"RECENT_INFECTION_TRAUMA", "NO"},
-            {"DIFFICULTY_BREATHING_LYING_DOWN", "YES"}
-        }, {"DIAGNOSIS", "Pericarditis"}));
-
-        // Rule 320
-        rules.push_back(new RuleBackward(320, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "YES"},
-            {"RECENT_INFECTION_TRAUMA", "NO"},
-            {"DIFFICULTY_BREATHING_LYING_DOWN", "NO"}
-        }, {"DIAGNOSIS", "Stable Angina"}));
-
-        // Rule 330
-        rules.push_back(new RuleBackward(330, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "NO"},
-            {"HIGH_BP_HEADACHES_BLURRED_VISION", "YES"}
-        }, {"DIAGNOSIS", "Hypertensive Heart Disease"}));
-
-        // Rule 340
-        rules.push_back(new RuleBackward(340, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "NO"},
-            {"HIGH_BP_HEADACHES_BLURRED_VISION", "NO"},
-            {"BLUISH_SKIN_LIPS", "YES"},
-            {"PRESENT_SINCE_BIRTH", "YES"}
-        }, {"DIAGNOSIS", "Congenital Heart Disease"}));
-
-        // Rule 350
-        rules.push_back(new RuleBackward(350, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "NO"},
-            {"HIGH_BP_HEADACHES_BLURRED_VISION", "NO"},
-            {"BLUISH_SKIN_LIPS", "YES"},
-            {"PRESENT_SINCE_BIRTH", "NO"},
-            {"EXTREME_SHORTNESS_BREATH_FATIGUE_EXERTION", "YES"}
-        }, {"DIAGNOSIS", "Pulmonary Hypertension"}));
-
-        // Rule 360
-        rules.push_back(new RuleBackward(360, {
-            {"CHEST_PAIN", "YES"},
-            {"RADIATING_PAIN", "NO"},
-            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "NO"},
-            {"HIGH_BP_HEADACHES_BLURRED_VISION", "NO"},
-            {"BLUISH_SKIN_LIPS", "NO"},
-            {"EXTREME_SHORTNESS_BREATH_FATIGUE_EXERTION", "NO"}
-        }, {"DIAGNOSIS", "Benign Condition"}));
-    }
-
-    ~KnowledgeBaseBackward() {
-        for(auto rule : rules)
-            delete rule;
-    }
+        // Initialize questionVarList
+        questionVarList = 
+        {
+            {"CHEST_PAIN", "Chest pain or discomfort?"},
+            {"RADIATING_PAIN", "Pain radiating to arms, neck, jaw, or back?"},
+            {"SWELLING_LEGS_ANKLES", "Swelling in the legs or ankles?"},
+            {"EXERTION_STRESS", "Occurs after exertion or stress?"},
+            {"CHEST_PAIN_WORSE_LYING_DOWN", "Does chest pain worsen when lying down?"},
+            {"SHORTNESS_BREATH_LYING_DOWN", "Do you have shortness of breath while lying down?"},
+            {"LEG_PAIN_WHEN_WALKING", "Leg pain or cramping while walking?"},
+            {"RELIEF_WITH_REST", "Relief with rest or nitroglycerin?"},
+            {"NAUSEA_VOMITING", "Nausea, vomiting, sweating, shortness of breath?"},
+            {"DISCOMFORT_OVER_MINUTES", "Discomfort lasts over ___ minutes?"},
+            {"CHEST_PAIN_RANDOM", "Chest pain occurs randomly?"},
+            {"DIZZINESS_FAINTING", "Do you experience dizziness or fainting?"},
+            {"FLUTTERING_HEARTBEAT", "Do you feel a fluttering or irregular heartbeat?"},
+            {"SHORTNESS_BREATH_CHEST_TIGHTNESS", "Shortness of breath with chest tightness?"},
+            {"IS_SHORTNESS_BREATH_WITH_EXERTION", "Is there shortness of breath with exertion?"},
+            {"RECENT_FEVER_ILLNESS", "Recent fever or illness?"},
+            {"FEVER_WEIGHT_LOSS", "Fever with unexplained weight loss?"},
+            {"NIGHT_SWEATS_CHILLS", "Do you experience night sweats or chills?"},
+            {"NEW_HEART_MURMUR", "Do you have a new or worsening heart murmur?"},
+            {"PAINFUL_SWOLLEN_JOINTS", "Do you have painful, swollen joints?"},
+            {"SWELLING_LEGS_DIFFICULTY_BREATHING", "Do you have swelling in your legs and difficulty breathing?"},
+            {"SHARP_CHEST_PAIN_DEEP_BREATHS", "Do you experience sharp, stabbing chest pain that worsens with deep breaths?"},
+            {"RECENT_INFECTION_TRAUMA", "Was there a recent infection or trauma?"},
+            {"HIGH_BP_HEADACHES_BLURRED_VISION", "High blood pressure with severe headaches or blurred vision?"},
+            {"BLUISH_SKIN_LIPS", "Bluish skin or lips (cyanosis)?"},
+            {"PRESENT_SINCE_BIRTH", "Has this been present since birth?"},
+            {"EXTREME_SHORTNESS_BREATH_FATIGUE_EXERTION", "Do you experience extreme shortness of breath or fatigue with exertion?"},
+            {"HIGH_BLOOD_PRESSURE", "Do you have high blood pressure?"},
+            {"SHORTNESS_BREATH_CHEST_PAIN_EXERTION", "Do you have shortness of breath and chest pain with exertion?"},
+            {"PERSISTENT_DRY_COUGH", "Do you have a persistent dry cough?"},
+            {"PRODUCTIVE_COUGH_WHEEZING", "Is there a productive cough or wheezing?"},
+            {"SWOLLEN_LIVER_ABDOMEN", "Do you have swollen liver or abdomen?"},
+            {"HISTORY_ALCOHOL_DRUGS", "Do you have a history of alcohol abuse or drug use?"},
+            {"FREQUENT_INFECTIONS_FEVER", "Do you have frequent infections or fever?"},
+            {"PAIN_SUBSIDES_AFTER_REST", "Does the pain subside after rest?"},
+            {"NUMBNESS_COLDNESS_LIMBS", "Do you experience numbness or coldness in your limbs?"},
+            {"PAIN_SUDDEN_SEVERE", "Does the pain or numbness occur suddenly with severe intensity?"},
+            {"DIFFICULTY_BREATHING_LYING_DOWN", "Difficulty breathing when lying down?"}
+        };
+    } // Removed the semicolon here
 };
 
-// Knowledge Base for Forward Chaining (Treatment)
-class KnowledgeBaseForward {
-public:
-    vector<RuleForward*> rules;
-
-    KnowledgeBaseForward() {
-        // Initialize forward chaining rules
-
-        // Rule 10
-        rules.push_back(new RuleForward(10, {
-            {"DISEASE", "Coronary Artery Disease"},
-            {"SYMPTOM", "Chest pain or discomfort"}
-        }, "Lifestyle changes (diet, exercise, smoking cessation)"));
-
-        // Rule 20
-        rules.push_back(new RuleForward(20, {
-            {"DISEASE", "Coronary Artery Disease"},
-            {"SYMPTOM", "Pain radiating to arms, neck, jaw, or back"}
-        }, "Medications (statins, beta blockers)"));
-
-        // Rule 30
-        rules.push_back(new RuleForward(30, {
-            {"DISEASE", "Heart Attack (Myocardial Infarction)"},
-            {"SYMPTOM", "Severe chest pain lasting over 15 minutes"}
-        }, "Immediate administration of aspirin"));
-
-        // Rule 40
-        rules.push_back(new RuleForward(40, {
-            {"DISEASE", "Heart Attack (Myocardial Infarction)"},
-            {"SYMPTOM", "Shortness of breath"}
-        }, "Thrombolytic therapy (clot busting drugs)"));
-
-        // Rule 50
-        rules.push_back(new RuleForward(50, {
-            {"DISEASE", "Unstable Angina"},
-            {"SYMPTOM", "Chest pain occurs randomly, even at rest"}
-        }, "Hospitalization for monitoring"));
-
-        // Rule 60
-        rules.push_back(new RuleForward(60, {
-            {"DISEASE", "Unstable Angina"},
-            {"SYMPTOM", "Chest pain not relieved by rest or nitroglycerin"}
-        }, "Medications (antiplatelet agents, anticoagulants)"));
-
-        // Rule 70
-        rules.push_back(new RuleForward(70, {
-            {"DISEASE", "Stable Angina"},
-            {"SYMPTOM", "Chest pain during physical exertion"}
-        }, "Medications (nitrates, beta blockers)"));
-
-        // Rule 80
-        rules.push_back(new RuleForward(80, {
-            {"DISEASE", "Stable Angina"},
-            {"SYMPTOM", "Chest pain relieved by rest or nitroglycerin"}
-        }, "Lifestyle changes (exercise, healthy diet)"));
-
-        // Rule 90
-        rules.push_back(new RuleForward(90, {
-            {"DISEASE", "Pericarditis"},
-            {"SYMPTOM", "Sharp, stabbing chest pain worsening when lying down"}
-        }, "Nonsteroidal antiinflammatory drugs (NSAIDs)"));
-
-        // Rule 100
-        rules.push_back(new RuleForward(100, {
-            {"DISEASE", "Pericarditis"},
-            {"SYMPTOM", "Pain improves when sitting up or leaning forward"}
-        }, "Colchicine"));
-
-        // Rule 110
-        rules.push_back(new RuleForward(110, {
-            {"DISEASE", "Arrhythmia"},
-            {"SYMPTOM", "Fluttering or irregular heartbeat"}
-        }, "Antiarrhythmic medications"));
-
-        // Rule 120
-        rules.push_back(new RuleForward(120, {
-            {"DISEASE", "Arrhythmia"},
-            {"SYMPTOM", "Dizziness or fainting"}
-        }, "Pacemaker implantation"));
-
-        // Rule 130
-        rules.push_back(new RuleForward(130, {
-            {"DISEASE", "Benign Palpitations"},
-            {"SYMPTOM", "Sensation of skipped or extra heartbeats"}
-        }, "Reassurance and monitoring"));
-
-        // Rule 140
-        rules.push_back(new RuleForward(140, {
-            {"DISEASE", "Benign Palpitations"},
-            {"SYMPTOM", "No associated dizziness or fainting"}
-        }, "Lifestyle changes (reduce caffeine and stress)"));
-
-        // Rule 150
-        rules.push_back(new RuleForward(150, {
-            {"DISEASE", "Pulmonary Hypertension"},
-            {"SYMPTOM", "Shortness of breath with chest tightness"}
-        }, "Vasodilator medications"));
-
-        // Rule 160
-        rules.push_back(new RuleForward(160, {
-            {"DISEASE", "Pulmonary Hypertension"},
-            {"SYMPTOM", "Extreme fatigue during exertion"}
-        }, "Endothelin receptor antagonists"));
-
-        // Rule 170
-        rules.push_back(new RuleForward(170, {
-            {"DISEASE", "Endocarditis"},
-            {"SYMPTOM", "Fever with unexplained weight loss"}
-        }, "Prolonged intravenous antibiotic therapy"));
-
-        // Rule 180
-        rules.push_back(new RuleForward(180, {
-            {"DISEASE", "Endocarditis"},
-            {"SYMPTOM", "New or worsening heart murmur"}
-        }, "Surgical repair or replacement of damaged valves"));
-
-        // Rule 190
-        rules.push_back(new RuleForward(190, {
-            {"DISEASE", "RightSided Heart Failure"},
-            {"SYMPTOM", "Swelling in legs or ankles (edema)"}
-        }, "Diuretics to reduce fluid overload"));
-
-        // Rule 200
-        rules.push_back(new RuleForward(200, {
-            {"DISEASE", "RightSided Heart Failure"},
-            {"SYMPTOM", "Swollen liver or abdomen"}
-        }, "Medications to improve heart function (ACE inhibitors)"));
-
-        // Rule 210
-        rules.push_back(new RuleForward(210, {
-            {"DISEASE", "Congestive Heart Failure"},
-            {"SYMPTOM", "Shortness of breath with exertion or lying down"}
-        }, "Medications (diuretics, beta blockers)"));
-
-        // Rule 220
-        rules.push_back(new RuleForward(220, {
-            {"DISEASE", "Congestive Heart Failure"},
-            {"SYMPTOM", "Fatigue and weakness"}
-        }, "Lifestyle changes (sodium restriction, exercise)"));
-
-        // Rule 230
-        rules.push_back(new RuleForward(230, {
-            {"DISEASE", "Cardiomyopathy"},
-            {"SYMPTOM", "Shortness of breath"}
-        }, "Medications (beta blockers, ACE inhibitors)"));
-
-        // Rule 240
-        rules.push_back(new RuleForward(240, {
-            {"DISEASE", "Cardiomyopathy"},
-            {"SYMPTOM", "History of alcohol abuse or drug use"}
-        }, "Lifestyle modifications (avoid alcohol, drugs)"));
-
-        // Rule 250
-        rules.push_back(new RuleForward(250, {
-            {"DISEASE", "Hypertensive Heart Disease"},
-            {"SYMPTOM", "High blood pressure with severe headaches"}
-        }, "Antihypertensive medications"));
-
-        // Rule 260
-        rules.push_back(new RuleForward(260, {
-            {"DISEASE", "Hypertensive Heart Disease"},
-            {"SYMPTOM", "Blurred vision"}
-        }, "Lifestyle changes (diet, exercise)"));
-
-        // Rule 270
-        rules.push_back(new RuleForward(270, {
-            {"DISEASE", "Valvular Heart Disease"},
-            {"SYMPTOM", "Shortness of breath"}
-        }, "Medications to manage symptoms (diuretics, vasodilators)"));
-
-        // Rule 280
-        rules.push_back(new RuleForward(280, {
-            {"DISEASE", "Valvular Heart Disease"},
-            {"SYMPTOM", "Heart murmur"}
-        }, "Surgical valve repair or replacement"));
-
-        // Rule 290
-        rules.push_back(new RuleForward(290, {
-            {"DISEASE", "Rheumatic Heart Disease"},
-            {"SYMPTOM", "Painful, swollen joints"}
-        }, "Anti Inflammatory medications"));
-
-        // Rule 300
-        rules.push_back(new RuleForward(300, {
-            {"DISEASE", "Rheumatic Heart Disease"},
-            {"SYMPTOM", "Fever"}
-        }, "Antibiotics to eliminate residual streptococcal infection"));
-
-        // Rule 310
-        rules.push_back(new RuleForward(310, {
-            {"DISEASE", "Congenital Heart Disease"},
-            {"SYMPTOM", "Bluish skin or lips (cyanosis)"}
-        }, "Surgical repair of defects"));
-
-        // Rule 320
-        rules.push_back(new RuleForward(320, {
-            {"DISEASE", "Congenital Heart Disease"},
-            {"SYMPTOM", "Fatigue during exertion"}
-        }, "Medications to manage symptoms"));
-
-        // Rule 330
-        rules.push_back(new RuleForward(330, {
-            {"DISEASE", "Peripheral Artery Disease"},
-            {"SYMPTOM", "Leg pain or cramping while walking (intermittent claudication)"}
-        }, "Structured exercise program"));
-
-        // Rule 340
-        rules.push_back(new RuleForward(340, {
-            {"DISEASE", "Peripheral Artery Disease"},
-            {"SYMPTOM", "Numbness or coldness in limbs"}
-        }, "Medications (antiplatelet agents)"));
-
-        // Rule 350
-        rules.push_back(new RuleForward(350, {
-            {"DISEASE", "Aortic Aneurysm"},
-            {"SYMPTOM", "Sudden, severe chest or back pain"}
-        }, "Emergency surgical repair"));
-
-        // Rule 360
-        rules.push_back(new RuleForward(360, {
-            {"DISEASE", "Aortic Aneurysm"},
-            {"SYMPTOM", "Pain or numbness occurs suddenly with severe intensity"}
-        }, "Endovascular aneurysm repair (EVAR)"));
-
-        // Rule 370
-        rules.push_back(new RuleForward(370, {
-            {"DISEASE", "Benign Condition"},
-            {"SYMPTOM", "Mild or no significant symptoms"}
-        }, "Reassurance and education"));
-
-        // Rule 380
-        rules.push_back(new RuleForward(380, {
-            {"DISEASE", "Benign Condition"},
-            {"SYMPTOM", "No serious underlying heart disease"}
-        }, "Lifestyle modifications"));
-    }
-
-    ~KnowledgeBaseForward() {
-        for(auto rule : rules)
-            delete rule;
-    }
-};
-
-// -----------------------------
-// Variable List Class
-// -----------------------------
-
+// VariableList class to manage variables and their status
 class VariableList {
 public:
-    unordered_map<string, string> variables;
+    map<string, bool> variableList; // Stores user responses
+    map<string, bool> derivedGlobalVariableList; // Stores derived conclusions
 
-    bool isInstantiated(const string& var) {
-        string var_upper = to_upper(var);
-        return variables.find(var_upper) != variables.end();
-    }
-
-    void setVariable(const string& var, const string& value) {
-        string var_upper = to_upper(var);
-        string value_upper = to_upper(value);
-        variables[var_upper] = value_upper;
-    }
-
-    string getVariable(const string& var) {
-        string var_upper = to_upper(var);
-        if(isInstantiated(var_upper))
-            return variables[var_upper];
-        else
-            return "";
-    }
-
-    void printVariables() {
-        cout << "\nVariable List:\n";
-        for(auto& pair : variables){
-            cout << pair.first << " = " << pair.second << "\n";
+    // Function to get the status of a variable
+    bool getStatus(const string& variable) {
+        if (variableList.find(variable) != variableList.end()) {
+            return variableList[variable];
         }
+        return false;
     }
 
-private:
-    string to_upper(const string& str){
-        string result = str;
-        transform(result.begin(), result.end(), result.begin(), ::toupper);
-        return result;
+    // Function to set the status of a variable
+    void setStatus(const string& variable, bool status) {
+        variableList[variable] = status;
+    }
+
+    // Function to add a derived conclusion
+    void addDerived(const string& variable) {
+        derivedGlobalVariableList[variable] = true;
+    }
+
+    // Function to check if a conclusion has been derived
+    bool isDerived(const string& variable) {
+        return derivedGlobalVariableList.find(variable) != derivedGlobalVariableList.end();
     }
 };
 
-// -----------------------------
-// Inference Engine for Backward Chaining
-// -----------------------------
-
+// InferenceEngineBackward class to perform backward chaining
 class InferenceEngineBackward {
 private:
     KnowledgeBaseBackward* kb;
-    VariableList* varList;
+    VariableList* vl;
 
 public:
-    InferenceEngineBackward(KnowledgeBaseBackward* knowledgeBase, VariableList* variables)
-        : kb(knowledgeBase), varList(variables) {}
-
-    // Function 1: search_con
-    // Finds all rules that conclude the goal variable
-    vector<RuleBackward*> search_con(const string& goalVariable) {
-        vector<RuleBackward*> matchingRules;
-        for(auto rule : kb->rules){
-            if(rule->conclusion.first == goalVariable){
-                matchingRules.push_back(rule);
-            }
-        }
-        return matchingRules;
+    InferenceEngineBackward(KnowledgeBaseBackward* kb_ptr, VariableList* vl_ptr) {
+        kb = kb_ptr;
+        vl = vl_ptr;
     }
 
-    // Function 2: rule_to_clause
-    int rule_to_clause(int Ri) {
-        // Assuming rules are sequenced like 10,20,30,... hence use the second formula
-        // CLAUSE NUMBER (Ci) = 4* (RULE NUMBER / 10 - 1) + 1
-        return 4 * (Ri / 10 - 1) + 1;
-    }
+    // Function to process rules and derive diagnosis
+    bool Process(string goal, string &diagnosis, int &usedRuleNumber) {
+        // Sort rules based on their IDs (ascending order)
+        vector<Rule> sortedRules = kb->rules;
+        sort(sortedRules.begin(), sortedRules.end(), [&](const Rule &a, const Rule &b) -> bool {
+            return a.id < b.id;
+        });
 
-    // Function 3: update_VL
-    bool update_VL(int Ci, RuleBackward* rule) {
-        // Ci is not directly used in this implementation, but kept for adherence
-        // Ask user for each condition in the rule if not already instantiated
-        for(auto& cond : rule->conditions){
-            if(!varList->isInstantiated(cond.first)){
-                string response;
-                cout << "Is " << cond.first << " (YES/NO): ";
-                getline(cin, response);
-                // Convert to uppercase for consistency
-                transform(response.begin(), response.end(), response.begin(), ::toupper);
-                if(response != "YES" && response != "NO"){
-                    cout << "Invalid input. Assuming NO.\n";
-                    response = "NO";
+        // Iterate through each rule
+        for (const auto& rule : sortedRules) {
+            bool ruleSatisfied = true;
+
+            // Iterate through each condition in the rule
+            for (const auto& condition : rule.conditions) {
+                // Check if the variable has already been answered
+                if (vl->variableList.find(condition) != vl->variableList.end()) {
+                    if (!vl->variableList[condition]) {
+                        // If previously answered 'No', skip this rule
+                        ruleSatisfied = false;
+                        break;
+                    }
+                    // If 'Yes', continue to next condition
+                    continue;
                 }
-                varList->setVariable(cond.first, response);
-            }
-        }
-        return true;
-    }
 
-    // Function 4: validate_Ri
-    bool validate_Ri(RuleBackward* rule, string& diagnosis) {
-        // Check if all conditions are satisfied
-        bool valid = true;
-        for(auto& cond : rule->conditions){
-            if(!varList->isInstantiated(cond.first) || varList->getVariable(cond.first) != cond.second){
-                valid = false;
-                break;
-            }
-        }
-
-        if(valid){
-            diagnosis = rule->conclusion.second;
-            varList->setVariable("DIAGNOSIS", diagnosis);
-            // Removed the unwanted message
-            return true;
-        }
-        else{
-            // Removed the unwanted message
-        }
-        return false;
-    }
-
-    // Function 5: Process
-    bool Process(const string& goalVariable, string& result, int& ruleNumber) {
-        // Start with the goal variable
-        // Find all rules that conclude the goal variable
-        vector<RuleBackward*> matchingRules = search_con(goalVariable);
-
-        if(matchingRules.empty()){
-            cout << "No rules found to conclude " << goalVariable << ".\n";
-            return false;
-        }
-
-        for(auto rule : matchingRules){
-            int Ri = rule->ruleNumber;
-            int Ci = rule_to_clause(Ri);
-            // Update Variable List by asking user for conditions
-            if(!update_VL(Ci, rule)){
-                cout << "Failed to update variable list for rule " << Ri << ".\n";
-                continue;
+                // Ask the user the corresponding question
+                if (kb->questionVarList.find(condition) != kb->questionVarList.end()) {
+                    string question = kb->questionVarList[condition];
+                    cout << question << " (1 for Yes / 0 for No): ";
+                    int response;
+                    while (true) {
+                        cin >> response;
+                        if (response == 1 || response == 0) {
+                            break;
+                        } else {
+                            cout << "Please enter 1 for Yes or 0 for No: ";
+                        }
+                    }
+                    vl->setStatus(condition, response == 1);
+                    if (!vl->variableList[condition]) {
+                        // If answered 'No', skip the rest of the conditions for this rule
+                        ruleSatisfied = false;
+                        break;
+                    }
+                } else {
+                    // If no question is defined for the variable, assume false
+                    vl->setStatus(condition, false);
+                    ruleSatisfied = false;
+                    break;
+                }
             }
 
-            // Validate the rule
-            string diagnosis;
-            if(validate_Ri(rule, diagnosis)){
-                result = diagnosis;
-                ruleNumber = rule->ruleNumber;
+            if (ruleSatisfied) {
+                // All conditions are satisfied for this rule
+                diagnosis = rule.conclusion;
+                usedRuleNumber = rule.id;
+                vl->addDerived(rule.conclusion);
                 return true;
             }
-            else{
-                // Conditions not satisfied, try next rule
-                continue;
-            }
         }
 
-        // If none of the rules validate, return false
-        return false;
+        return false; // No matching rule satisfied
     }
 };
 
-// -----------------------------
-// Inference Engine for Forward Chaining
-// -----------------------------
+// KnowledgeBaseForward class to manage treatment recommendations
+class KnowledgeBaseForward {
+public:
+    map<string, vector<string>> treatmentRecommendations;
 
+    KnowledgeBaseForward() {
+        // Initialize treatment recommendations based on diagnosis
+        treatmentRecommendations = {
+            {"Coronary Artery Disease", {"Lifestyle changes", "Medications (e.g., aspirin, beta-blockers)", "Angioplasty or surgery"}},
+            {"Heart Attack (Myocardial Infarction)", {"Immediate medical attention", "Medications (e.g., thrombolytics)", "Surgical procedures (e.g., bypass surgery)"}},
+            {"Unstable Angina", {"Medications (e.g., nitrates, anticoagulants)", "Lifestyle modifications", "Surgical interventions if necessary"}},
+            {"Stable Angina", {"Lifestyle changes", "Medications (e.g., nitrates, beta-blockers)", "Possible angioplasty"}},
+            {"Pericarditis", {"Anti-inflammatory medications", "Rest", "Treatment of underlying cause"}},
+            {"Arrhythmia", {"Medications to control heart rate", "Pacemaker or defibrillator", "Lifestyle modifications"}},
+            {"Benign Palpitations", {"Reassurance", "Lifestyle changes if necessary"}},
+            {"Pulmonary Hypertension", {"Medications to dilate blood vessels", "Oxygen therapy", "Lifestyle changes"}},
+            {"Endocarditis", {"Antibiotics", "Surgery in severe cases"}},
+            {"Rheumatic Heart Disease", {"Antibiotics to treat strep infection", "Medications to manage symptoms"}},
+            {"Congestive Heart Failure", {"Medications (e.g., diuretics, ACE inhibitors)", "Lifestyle changes", "Surgical options"}},
+            {"Right-Sided Heart Failure", {"Treat underlying cause", "Medications to reduce fluid buildup"}},
+            {"Hypertensive Heart Disease", {"Antihypertensive medications", "Lifestyle modifications"}},
+            {"Valvular Heart Disease", {"Medications to manage symptoms", "Surgical repair or replacement of valves"}},
+            {"Cardiomyopathy", {"Medications to manage symptoms", "Lifestyle changes", "Surgical interventions if necessary"}},
+            {"Peripheral Artery Disease", {"Lifestyle changes", "Medications to manage symptoms", "Surgical procedures"}},
+            {"Aortic Aneurysm", {"Regular monitoring", "Surgical repair if necessary"}},
+            {"Congenital Heart Disease", {"Surgical interventions", "Medications", "Lifestyle adjustments"}},
+            {"Benign Condition", {"Reassurance and regular monitoring"}}
+        };
+    }
+};
+
+// InferenceEngineForward class to perform forward chaining for treatment recommendations
 class InferenceEngineForward {
 private:
-    KnowledgeBaseForward* kb;
-    VariableList* varList;
-    vector<string> derivedConclusions;
+    KnowledgeBaseForward* kb_forward;
+    VariableList* vl_forward;
+    vector<string> treatments;
 
 public:
-    InferenceEngineForward(KnowledgeBaseForward* knowledgeBase, VariableList* variables)
-        : kb(knowledgeBase), varList(variables) {}
+    InferenceEngineForward(KnowledgeBaseForward* kb_ptr, VariableList* vl_ptr) {
+        kb_forward = kb_ptr;
+        vl_forward = vl_ptr;
+    }
 
     // Function to recommend treatments based on diagnosis
     void recommendTreatments(const string& diagnosis) {
-        // Iterate through all forward chaining rules
-        for(auto rule : kb->rules){
-            // Check if the rule's disease matches the diagnosis
-            if(rule->conditions.find("DISEASE") != rule->conditions.end()){
-                string ruleDisease = rule->conditions["DISEASE"];
-                // Case-insensitive comparison
-                string ruleDisease_upper = to_upper(ruleDisease);
-                string diagnosis_upper = to_upper(diagnosis);
-                if(ruleDisease_upper != diagnosis_upper){
-                    continue; // Skip rules not related to the diagnosed disease
-                }
-
-                // Retrieve the symptom from the rule
-                if(rule->conditions.find("SYMPTOM") != rule->conditions.end()){
-                    string symptom = rule->conditions["SYMPTOM"];
-                    // Ask the user about the symptom
-                    string response;
-                    cout << "Do you experience \"" << symptom << "\"? (YES/NO): ";
-                    getline(cin, response);
-                    // Convert to uppercase for consistency
-                    transform(response.begin(), response.end(), response.begin(), ::toupper);
-                    if(response != "YES" && response != "NO"){
-                        cout << "Invalid input. Assuming NO.\n";
-                        response = "NO";
-                    }
-                    // Store the symptom response
-                    varList->setVariable(symptom, response);
-
-                    // If the user has the symptom, suggest the treatment
-                    if(response == "YES"){
-                        derivedConclusions.push_back(rule->conclusion);
-                    }
-                }
-            }
+        if (kb_forward->treatmentRecommendations.find(diagnosis) != kb_forward->treatmentRecommendations.end()) {
+            treatments = kb_forward->treatmentRecommendations[diagnosis];
+        } else {
+            treatments.push_back("No treatment recommendations available.");
         }
     }
 
-    // Function to print all derived treatment recommendations
+    // Function to print treatment recommendations
     void printConclusions() {
-        if(derivedConclusions.empty()){
-            cout << "No treatment recommendations based on the provided symptoms.\n";
-            return;
+        if (!treatments.empty()) {
+            cout << "Recommended Treatments:\n";
+            for (const auto& treatment : treatments) {
+                cout << "- " << treatment << "\n";
+            }
+        } else {
+            cout << "No treatment recommendations available.\n";
         }
-
-        cout << "\n--- Treatment Recommendations ---\n";
-        for(auto& concl : derivedConclusions){
-            cout << "- " << concl << "\n";
-        }
-    }
-
-private:
-    string to_upper(const string& str){
-        string result = str;
-        transform(result.begin(), result.end(), result.begin(), ::toupper);
-        return result;
     }
 };
 
-// -----------------------------
 // Main Function
-// -----------------------------
-
 int main(){
     // Initialize Knowledge Bases
     KnowledgeBaseBackward kb_backward;
@@ -873,22 +310,21 @@ int main(){
     // Initialize Inference Engines
     InferenceEngineBackward ie_backward(&kb_backward, &varList_backward);
     InferenceEngineForward ie_forward(&kb_forward, &varList_forward);
+
     cout << "-------------------------------------------------------\n";
     cout << "=== Cardiovascular Diseases Diagnosis Expert System ===\n";
     cout << "-------------------------------------------------------\n\n";
+
     // -----------------------------
     // Backward Chaining for Diagnosis
     // -----------------------------
     cout << "=== Diseases Diagnosis (Backwards) ===\n";
-
-    // Hardcode the goal variable to "DIAGNOSIS" to avoid user input errors
-    string goal = "DIAGNOSIS";
-    cout << "Determining diagnosis - Please answer YEE / NO to the following Symptoms:\n";
+    cout << "Determining diagnosis - Please answer the following symptoms:\n\n";
 
     // Start processing
     string diagnosis;
     int usedRuleNumber = -1;
-    bool found = ie_backward.Process(goal, diagnosis, usedRuleNumber);
+    bool found = ie_backward.Process("DIAGNOSIS", diagnosis, usedRuleNumber);
 
     if(found && !diagnosis.empty()){
         cout << "\nDiagnosis: " << diagnosis << " (Rule " << usedRuleNumber << ")\n";
